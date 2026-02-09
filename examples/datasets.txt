@@ -1,21 +1,33 @@
-# Example datasets file for download_dataset.py
-# Format: dataset_name[,config_name[,split]]
-# Usage: python download_dataset.py --from-file example_datasets.txt
+# =============================================================================
+# Datasets to pre-download for offline use on Leonardo compute nodes
+# =============================================================================
+# Format: dataset:name[,config[,split]]
+#
+# Usage:
+#   python bin/hf_cache_manager.py download-from-file examples/datasets.txt
+#
+# Or download individually:
+#   python bin/hf_cache_manager.py download-dataset hellaswag
+#   python bin/hf_cache_manager.py download-dataset cais/mmlu --name all
+# =============================================================================
 
-# Common evaluation datasets
-hellaswag
-winogrande,winogrande_xl
-arc,ARC-Easy
-arc,ARC-Challenge
+# ── Common eval benchmarks (used by oellm-cli) ──
+dataset:hellaswag
+dataset:winogrande,winogrande_xl
+dataset:openai/gsm8k,main
+dataset:arc,ARC-Easy
+dataset:arc,ARC-Challenge
+dataset:cais/mmlu,all
 
-# MMLU
-cais/mmlu,all
+# ── TRL training datasets ──
+# dataset:trl-lib/Capybara,,train
+# dataset:trl-lib/ultrafeedback_binarized
 
-# GSM8K
-openai/gsm8k,main
+# ── OpenJury datasets (use `download_all()` instead) ──
+# These are auto-downloaded by OpenJury via:
+#   cd OpenJury && uv run python -c "from openjury.utils import download_all; download_all()"
+# dataset:geoalgo/llmjudge
+# dataset:geoalgo/multilingual-contexts-to-be-completed
 
-# Belebele (multilingual reading comprehension)
-facebook/belebele,default
-
-# TruthfulQA
-truthfulqa/truthful_qa,multiple_choice
+# ── Multilingual ──
+# dataset:facebook/belebele,default

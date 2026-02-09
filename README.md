@@ -38,7 +38,17 @@ This will:
 - Generate your personal `.env.leonardo` config
 - Optionally add auto-sourcing to `~/.bashrc`
 
-### 3. Source the environment
+### 3. Install Python dependencies
+
+```bash
+uv sync              # base: huggingface-hub, datasets, transformers
+uv sync --extra vllm # + vLLM (for OpenJury with local models)
+```
+
+This creates a `.venv` with pinned, compatible versions (notably `transformers<5`
+to avoid vLLM breakage).
+
+### 4. Source the environment
 
 ```bash
 source leonardo_env.sh
@@ -49,15 +59,22 @@ source leonardo_env.sh
 ### 4. Download models & datasets (login node only)
 
 ```bash
-# Download a model
-python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
+# Download everything from a file (models + datasets in one go)
+python bin/hf_cache_manager.py download-from-file examples/all.txt
 
-# Download a dataset
-python bin/hf_cache_manager.py download-dataset trl-lib/Capybara --split train
+# Or download individually:
+python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
+python bin/hf_cache_manager.py download-dataset hellaswag
+python bin/hf_cache_manager.py download-dataset cais/mmlu --name all --split test
 
 # Check what's cached
 python bin/hf_cache_manager.py status
 ```
+
+See [examples/](examples/) for pre-made download lists:
+- `examples/models.txt` — common evaluation models
+- `examples/datasets.txt` — common evaluation datasets
+- `examples/all.txt` — combined list for one-shot download
 
 ### 5. Run on GPU
 
@@ -79,6 +96,7 @@ After setup, your workspace looks like this:
 ├── scripts/                    ← this repo
 │   ├── setup.sh                ← first-time setup (run once)
 │   ├── leonardo_env.sh         ← environment config (source every session)
+│   ├── pyproject.toml          ← Python deps (uv sync to install)
 │   ├── .env.leonardo           ← your personal config (gitignored)
 │   ├── bin/
 │   │   ├── hf_cache_manager.py ← download & manage HF cache
@@ -89,6 +107,7 @@ After setup, your workspace looks like this:
 │   │   ├── run_in_container.sh ← run command inside container
 │   │   └── ...                 
 │   └── examples/
+│       ├── all.txt             ← combined models + datasets list
 │       ├── models.txt          ← example model list
 │       └── datasets.txt        ← example dataset list
 ├── oellm-evals/
@@ -140,12 +159,15 @@ uv sync --extra vllm
 ### Download models & datasets (login node)
 
 ```bash
-# Download evaluation models
+# Option 1: batch download all OpenJury models at once
+python ../scripts/bin/hf_cache_manager.py download-from-file ../scripts/examples/all.txt
+
+# Option 2: download individually
 python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
 python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-1.5B-Instruct
 python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8
 
-# Download OpenJury datasets
+# Download OpenJury's own datasets (alpaca-eval tables, judge configs, etc.)
 uv run python -c "from openjury.utils import download_all; download_all()"
 ```
 
@@ -188,20 +210,51 @@ first makes it available for everyone.
 |---|---|
 | `setup.sh` | First-time setup — generates `.env.leonardo` config |
 | `leonardo_env.sh` | Environment loader — source in every session |
+| `pyproject.toml` | Python dependencies — `uv sync` to install |
 | `bin/hf_cache_manager.py` | Download models/datasets, check cache status |
 | `bin/interactive_gpu.sh` | Quick interactive GPU allocation |
 | `slurm/eval_single.sbatch` | SLURM batch template for single evaluations |
 | `slurm/build_container.sh` | Build Singularity/Apptainer container |
 | `slurm/run_in_container.sh` | Run a command inside the container |
+| `examples/all.txt` | Combined models + datasets for batch download |
 
 ### hf_cache_manager.py commands
 
 ```bash
-python bin/hf_cache_manager.py download-model <model_id>     # Download a model
-python bin/hf_cache_manager.py download-dataset <dataset_id>  # Download a dataset
-python bin/hf_cache_manager.py status                         # Show cache summary
-python bin/hf_cache_manager.py verify <model_id>              # Check offline readiness
-python bin/hf_cache_manager.py list-local /path/to/checkpoints # Find local models
+# Download a single model
+python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
+
+# Download a single dataset (with optional --name config and --split)
+python bin/hf_cache_manager.py download-dataset hellaswag
+python bin/hf_cache_manager.py download-dataset cais/mmlu --name all --split test
+
+# Batch download from a file (models + datasets together)
+python bin/hf_cache_manager.py download-from-file examples/all.txt
+
+# Show cache summary (sizes + cached models)
+python bin/hf_cache_manager.py status
+
+# Check if a model is ready for offline use
+python bin/hf_cache_manager.py verify Qwen/Qwen2.5-0.5B-Instruct
+
+# Find local fine-tuned models (safetensors)
+python bin/hf_cache_manager.py list-local /path/to/checkpoints
+```
+
+### Download file format
+
+Files passed to `download-from-file` use a simple text format:
+
+```text
+# Comments start with #
+# Plain lines → models
+Qwen/Qwen2.5-0.5B-Instruct
+
+# Lines starting with "dataset:" → datasets
+# Format: dataset:name[,config[,split]]
+dataset:hellaswag
+dataset:cais/mmlu,all
+dataset:trl-lib/Capybara,,train
 ```
 
 ## ❓ Troubleshooting

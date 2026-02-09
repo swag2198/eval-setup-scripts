@@ -1,13 +1,29 @@
-# Example models file for download_model.py
+# =============================================================================
+# Models to pre-download for offline use on Leonardo compute nodes
+# =============================================================================
 # One model per line, comments start with #
-# Usage: python download_model.py --from-file example_models.txt
+#
+# Usage:
+#   python bin/hf_cache_manager.py download-from-file examples/models.txt
+#
+# Or download individually:
+#   python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
+# =============================================================================
 
-# Small models for testing
-EleutherAI/pythia-160m
-microsoft/DialoGPT-medium
+# ── Small models (good for testing pipelines) ──
+Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen2.5-1.5B-Instruct
+# EleutherAI/pythia-160m
 
-# Larger models (uncomment as needed)
-# meta-llama/Llama-2-7b-hf
-# meta-llama/Llama-2-13b-hf
-# mistralai/Mistral-7B-v0.1
-# mistralai/Mixtral-8x7B-v0.1
+# ── Medium models ──
+# Qwen/Qwen2.5-7B-Instruct
+# mistralai/Mistral-7B-Instruct-v0.3
+# utter-project/EuroLLM-9B
+
+# ── Large models (quantised, for judge/evaluator use) ──
+Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8
+# Qwen/Qwen2.5-72B-Instruct-GPTQ-Int4
+
+# ── Gated models (need `huggingface-cli login` first) ──
+# meta-llama/Llama-3.1-8B-Instruct
+# meta-llama/Llama-3.1-70B-Instruct

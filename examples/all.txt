@@ -1,0 +1,24 @@
+# =============================================================================
+# All models & datasets to pre-download for Leonardo compute nodes
+# =============================================================================
+# This file can be used for a one-shot download of everything needed to
+# run OpenJury evaluations offline.
+#
+# Usage:
+#   python bin/hf_cache_manager.py download-from-file examples/all.txt
+#
+# Lines starting with "dataset:" are datasets, everything else is a model.
+# =============================================================================
+
+# ── Models ──
+Qwen/Qwen2.5-0.5B-Instruct
+Qwen/Qwen2.5-1.5B-Instruct
+Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8
+
+# ── Evaluation datasets (oellm-cli) ──
+dataset:hellaswag
+dataset:winogrande,winogrande_xl
+dataset:openai/gsm8k,main
+dataset:arc,ARC-Easy
+dataset:arc,ARC-Challenge
+dataset:cais/mmlu,all

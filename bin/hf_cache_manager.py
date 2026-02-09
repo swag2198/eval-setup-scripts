@@ -259,6 +259,63 @@ class HFCacheManager:
             return False
 
     # ───────────────────────────────────────────────────────────────
+    #  Batch download from file
+    # ───────────────────────────────────────────────────────────────
+    def download_from_file(self, filepath: str) -> tuple[int, int]:
+        """Download models and datasets listed in a text file.
+
+        File format (one entry per line, comments start with ``#``)::
+
+            # Models (just the repo id)
+            Qwen/Qwen2.5-0.5B-Instruct
+            Qwen/Qwen2.5-1.5B-Instruct
+
+            # Datasets: name[,config[,split]]
+            dataset:hellaswag
+            dataset:cais/mmlu,all
+            dataset:trl-lib/Capybara,,train
+
+        Lines starting with ``dataset:`` are treated as datasets.
+        Everything else is treated as a model.
+
+        Args:
+            filepath: Path to the text file.
+
+        Returns:
+            Tuple of (successes, failures).
+        """
+        path = Path(filepath)
+        if not path.exists():
+            print(f"❌ File not found: {filepath}")
+            return (0, 1)
+
+        successes, failures = 0, 0
+
+        for raw_line in path.read_text().splitlines():
+            line = raw_line.strip()
+            if not line or line.startswith("#"):
+                continue
+
+            if line.startswith("dataset:"):
+                # Parse: dataset:name[,config[,split]]
+                parts = line[len("dataset:"):].split(",")
+                ds_name = parts[0].strip()
+                ds_config = parts[1].strip() if len(parts) > 1 and parts[1].strip() else None
+                ds_split = parts[2].strip() if len(parts) > 2 and parts[2].strip() else None
+                ok = self.download_dataset(ds_name, name=ds_config, split=ds_split)
+            else:
+                ok = self.download_model(line)
+
+            if ok:
+                successes += 1
+            else:
+                failures += 1
+
+        print(f"\n{'='*50}")
+        print(f"📋 Batch complete: {successes} succeeded, {failures} failed")
+        return (successes, failures)
+
+    # ───────────────────────────────────────────────────────────────
     #  Local / fine-tuned models
     # ───────────────────────────────────────────────────────────────
     @staticmethod
@@ -438,6 +495,16 @@ def main():
     p.add_argument("--split", help="Specific split")
     p.add_argument("--trust-remote-code", action="store_true")
 
+    # ── download-from-file ──
+    p = sub.add_parser(
+        "download-from-file",
+        help="Batch download models & datasets from a text file",
+    )
+    p.add_argument(
+        "filepath",
+        help="Path to file listing models/datasets (see examples/)",
+    )
+
     # ── status ──
     sub.add_parser("status", help="Show cache status")
 
@@ -466,6 +533,10 @@ def main():
             args.dataset_name, args.name, args.split, args.trust_remote_code,
         )
         sys.exit(0 if ok else 1)
+
+    elif args.command == "download-from-file":
+        successes, failures = hf.download_from_file(args.filepath)
+        sys.exit(0 if failures == 0 else 1)
 
     elif args.command == "status":
         hf.print_cache_status()

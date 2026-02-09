@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "leonardo-eval-scripts"
+version = "0.1.0"
+description = "Leonardo HPC scripts for LLM evaluation with oellm-cli and OpenJury"
+requires-python = ">=3.10"
+
+dependencies = [
+    "huggingface-hub>=0.25.0",
+    "datasets>=3.0.0",
+    "transformers>=4.44.0,<5",
+]
+
+[project.optional-dependencies]
+# Full stack for running OpenJury evaluations locally
+vllm = [
+    "vllm==0.10.2",
+]
+
+[tool.uv]
+# uv-specific settings
+dev-dependencies = []
