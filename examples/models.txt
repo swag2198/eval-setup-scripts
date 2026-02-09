@@ -1,0 +1,13 @@
+# Example models file for download_model.py
+# One model per line, comments start with #
+# Usage: python download_model.py --from-file example_models.txt
+
+# Small models for testing
+EleutherAI/pythia-160m
+microsoft/DialoGPT-medium
+
+# Larger models (uncomment as needed)
+# meta-llama/Llama-2-7b-hf
+# meta-llama/Llama-2-13b-hf
+# mistralai/Mistral-7B-v0.1
+# mistralai/Mixtral-8x7B-v0.1

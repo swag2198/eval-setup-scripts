@@ -1,0 +1,21 @@
+# Example datasets file for download_dataset.py
+# Format: dataset_name[,config_name[,split]]
+# Usage: python download_dataset.py --from-file example_datasets.txt
+
+# Common evaluation datasets
+hellaswag
+winogrande,winogrande_xl
+arc,ARC-Easy
+arc,ARC-Challenge
+
+# MMLU
+cais/mmlu,all
+
+# GSM8K
+openai/gsm8k,main
+
+# Belebele (multilingual reading comprehension)
+facebook/belebele,default
+
+# TruthfulQA
+truthfulqa/truthful_qa,multiple_choice
