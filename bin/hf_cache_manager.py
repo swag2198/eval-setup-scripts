@@ -37,6 +37,7 @@ Usage:
     #   oellm schedule-eval --models /path/to/my-model ...
 """
 
+import getpass
 import os
 import sys
 from pathlib import Path
@@ -156,6 +157,95 @@ class HFCacheManager:
             print()
 
     # ───────────────────────────────────────────────────────────────
+    #  HuggingFace token management
+    # ───────────────────────────────────────────────────────────────
+    def _get_token(self) -> Optional[str]:
+        """Return the current HF token from env vars or huggingface-cli cache, or None."""
+        for var in ("HF_TOKEN", "HUGGINGFACE_HUB_TOKEN"):
+            tok = os.environ.get(var)
+            if tok:
+                return tok
+        # Check the stored token from `huggingface-cli login`
+        try:
+            from huggingface_hub import HfFolder
+            tok = HfFolder.get_token()
+            if tok:
+                return tok
+        except Exception:
+            pass
+        return None
+
+    def validate_token(self, token: Optional[str] = None) -> bool:
+        """Validate a HuggingFace token and display user information.
+
+        Args:
+            token: Token to validate. If ``None``, uses the current env/cached token.
+
+        Returns:
+            ``True`` if the token is valid.
+        """
+        from huggingface_hub import HfApi
+
+        tok = token or self._get_token()
+        try:
+            api = HfApi(token=tok) if tok else HfApi()
+            user_info = api.whoami()
+            print(f"✅ Token validated successfully!")
+            print(f"   Logged in as : {user_info['name']}")
+            print(f"   Token type   : {user_info.get('type', 'unknown')}")
+            return True
+        except Exception as e:
+            print(f"❌ Token validation failed.")
+            print(f"   Error: {e}")
+            print("\n💡 Please check that:")
+            print("   1. Your token is correctly set")
+            print("   2. Your token has the necessary permissions")
+            print("   3. You have accepted the model license on huggingface.co")
+            print("   4. Try running: huggingface-cli login")
+            return False
+
+    def ensure_token(self) -> Optional[str]:
+        """Make sure an HF token is available, prompting interactively if needed.
+
+        Resolution order:
+        1. ``HF_TOKEN`` or ``HUGGINGFACE_HUB_TOKEN`` environment variables
+        2. Token stored by ``huggingface-cli login``
+        3. Interactive prompt (token is then exported for the session)
+
+        Returns:
+            The token string, or ``None`` if the user skips.
+        """
+        token = self._get_token()
+
+        if token:
+            # Already have a token – validate silently
+            if self.validate_token(token):
+                return token
+            print("\n⚠️  Existing token is invalid or expired.")
+            # Fall through to prompt
+
+        # Interactive prompt
+        print("\n🔑 No HuggingFace token found.")
+        print("   A token is required to download gated/private models")
+        print("   (e.g. Meta-Llama, Mistral, etc.).")
+        print("   Get yours at: https://huggingface.co/settings/tokens\n")
+
+        token = getpass.getpass("   Paste your HF token (input hidden): ").strip()
+
+        if not token:
+            print("   ⏭️  Skipped – continuing without token (public models only).")
+            return None
+
+        # Validate the provided token
+        if not self.validate_token(token):
+            print("   Continuing anyway – some downloads may fail for gated models.")
+
+        # Persist for this process and child processes
+        os.environ["HF_TOKEN"] = token
+        print(f"   Token exported as HF_TOKEN for this session.\n")
+        return token
+
+    # ───────────────────────────────────────────────────────────────
     #  Download model  (snapshot_download – same as oellm-cli)
     # ───────────────────────────────────────────────────────────────
     def download_model(
@@ -183,6 +273,7 @@ class HFCacheManager:
             ``True`` on success, ``False`` on error.
         """
         self.setup_environment(offline=False, verbose=False)
+        token = self._get_token()
 
         from huggingface_hub import snapshot_download
 
@@ -196,6 +287,7 @@ class HFCacheManager:
                 revision=revision,
                 cache_dir=self.hub_cache,
                 ignore_patterns=ignore_patterns,
+                token=token,
             )
             print(f"✅ Model cached at {path}")
             return True
@@ -228,6 +320,7 @@ class HFCacheManager:
             ``True`` on success, ``False`` on error.
         """
         self.setup_environment(offline=False, verbose=False)
+        token = self._get_token()
 
         from datasets import load_dataset
 
@@ -244,6 +337,7 @@ class HFCacheManager:
                 split=split,
                 cache_dir=str(self.datasets_cache),
                 trust_remote_code=trust_remote_code,
+                token=token,
             )
 
             if split:
@@ -288,6 +382,9 @@ class HFCacheManager:
         if not path.exists():
             print(f"❌ File not found: {filepath}")
             return (0, 1)
+
+        # Ensure token is available before starting the batch
+        self.ensure_token()
 
         successes, failures = 0, 0
 
@@ -613,6 +710,9 @@ def main():
     p = sub.add_parser("list-local", help="Find local models (safetensors) in a directory")
     p.add_argument("directory", help="Directory to search")
 
+    # ── login ──
+    sub.add_parser("login", help="Check / set HuggingFace token (prompt if missing)")
+
     # ── setup ──
     p = sub.add_parser("setup", help="Print / export environment variables")
     p.add_argument("--offline", action="store_true", help="Enable offline mode")
@@ -661,6 +761,10 @@ def main():
 
     elif args.command == "list-local":
         hf.list_local_models(args.directory)
+
+    elif args.command == "login":
+        token = hf.ensure_token()
+        sys.exit(0 if token else 1)
 
     elif args.command == "setup":
         hf.setup_environment(offline=args.offline)
