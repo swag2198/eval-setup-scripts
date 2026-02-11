@@ -38,6 +38,7 @@ bash setup.sh --reconfigure
 This will:
 - Detect your username
 - Ask for your SLURM account (validates it exists via `sacctmgr`)
+- Let you choose a **work directory** (`/leonardo_work`, `/leonardo_scratch/fast`, or a custom path)
 - Let you choose per-user or shared HF cache
 - Generate your personal `.env.leonardo` config
 - Optionally add auto-sourcing to `~/.bashrc`
@@ -62,7 +63,7 @@ source leonardo_env.sh
 
 (If you added it to `~/.bashrc` during setup, this happens automatically.)
 
-### 4. Download models & datasets (login node only)
+### 5. Download models & datasets (login node only)
 
 ```bash
 # Download everything from a file (models + datasets in one go)
@@ -89,7 +90,7 @@ See [examples/](examples/) for pre-made download lists:
 - `examples/datasets.txt` — common evaluation datasets
 - `examples/all.txt` — combined list for one-shot download
 
-### 5. Run on GPU
+### 6. Run on GPU
 
 ```bash
 # Get an interactive GPU session
@@ -104,10 +105,11 @@ See [examples/](examples/) for pre-made download lists:
 
 ## 📁 Directory Layout
 
-After setup, your workspace looks like this:
+After setup, your workspace looks like this (base path depends on your
+choice during `setup.sh` — `leonardo_work`, `leonardo_scratch`, or custom):
 
 ```
-/leonardo_work/<ACCOUNT>/users/<YOU>/
+<WORK_DIR>/                     ← e.g. /leonardo_work/<ACCOUNT>/users/<YOU>
 ├── scripts/                    ← this repo
 │   ├── setup.sh                ← first-time setup (run once)
 │   ├── leonardo_env.sh         ← environment config (source every session)

@@ -120,15 +120,33 @@ fi
 ok "Using SLURM account: ${BOLD}${ACCOUNT}${NC}"
 
 # ═══════════════════════════════════════════════════════════════════
-#  3. Detect work directory
+#  3. Choose work directory
 # ═══════════════════════════════════════════════════════════════════
-# Leonardo convention: /leonardo_work/<ACCOUNT>/users/<USERNAME>
-WORK_BASE="/leonardo_work/${ACCOUNT}/users/${DETECTED_USER}"
+echo ""
+info "Where should the evaluation environment live?"
+echo "   [1] /leonardo_work/${ACCOUNT}/users/${DETECTED_USER}   (persistent $WORK, default)"
+echo "   [2] /leonardo_scratch/fast/${DETECTED_USER}             (fast scratch, auto-purged)"
+echo "   [3] Custom path"
+echo ""
+read -rp "$(echo -e ${YELLOW}"Choose [1/2/3] (default: 1): "${NC})" DIR_CHOICE
+DIR_CHOICE="${DIR_CHOICE:-1}"
+
+case "${DIR_CHOICE}" in
+    2) WORK_BASE="/leonardo_scratch/fast/${DETECTED_USER}" ;;
+    3)
+        read -rp "$(echo -e ${YELLOW}"Enter full path: "${NC})" CUSTOM_DIR
+        if [[ -z "${CUSTOM_DIR}" ]]; then
+            err "Path cannot be empty. Aborting."; exit 1
+        fi
+        WORK_BASE="${CUSTOM_DIR}"
+        ;;
+    *) WORK_BASE="/leonardo_work/${ACCOUNT}/users/${DETECTED_USER}" ;;
+esac
 
 if [[ -d "${WORK_BASE}" ]]; then
     ok "Work directory found: ${WORK_BASE}"
 else
-    warn "Work directory does not exist yet: ${WORK_BASE}"
+    warn "Directory does not exist yet: ${WORK_BASE}"
     info "It will be created when you first run leonardo_env.sh."
 fi
 
