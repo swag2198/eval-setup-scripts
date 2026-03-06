@@ -395,33 +395,7 @@ else
 fi
 
 # ═══════════════════════════════════════════════════════════════════
-#  10. Auto-configure oellm-cli clusters.yaml (if found)
-# ═══════════════════════════════════════════════════════════════════
-_OELLM_CLI_DIR="${WORK_BASE}/oellm-cli"
-_CLUSTERS_YAML="${_OELLM_CLI_DIR}/oellm/resources/clusters.yaml"
-
-if [[ -f "${_CLUSTERS_YAML}" ]]; then
-    echo ""
-    info "Found oellm-cli at: ${_OELLM_CLI_DIR}"
-    read -rp "$(echo -e ${YELLOW}"Auto-configure clusters.yaml with your paths? [Y/n]: "${NC})" DO_OELLM
-    DO_OELLM="${DO_OELLM:-Y}"
-    if [[ "${DO_OELLM}" =~ ^[Yy]$ ]]; then
-        _EVAL_BASE="${WORK_BASE}/oellm-evals"
-        if grep -q 'EVAL_BASE_DIR:' "${_CLUSTERS_YAML}"; then
-            sed -i "s|EVAL_BASE_DIR:.*|EVAL_BASE_DIR: \"${_EVAL_BASE}\"|" "${_CLUSTERS_YAML}"
-        fi
-        if grep -q 'ACCOUNT:' "${_CLUSTERS_YAML}"; then
-            sed -i "s|ACCOUNT:.*|ACCOUNT: \"${ACCOUNT}\"|" "${_CLUSTERS_YAML}"
-        fi
-        if grep -q 'EVAL_OUTPUT_DIR:' "${_CLUSTERS_YAML}"; then
-            sed -i "s|EVAL_OUTPUT_DIR:.*|EVAL_OUTPUT_DIR: \"${SLURM_WORK_BASE}/oellm-cli\"|" "${_CLUSTERS_YAML}"
-        fi
-        ok "Updated clusters.yaml (EVAL_BASE_DIR, ACCOUNT, EVAL_OUTPUT_DIR)"
-    fi
-fi
-
-# ═══════════════════════════════════════════════════════════════════
-#  11. Summary
+#  10. Summary
 # ═══════════════════════════════════════════════════════════════════
 echo ""
 echo -e "${BOLD}╔═══════════════════════════════════════════════════════════╗${NC}"

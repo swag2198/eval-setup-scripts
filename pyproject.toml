@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "cluster-utils"
+name = "oellm-cluster-utils"
 version = "0.3.0"
 description = "Portable HPC environment & HuggingFace cache management for LLM evaluation"
 readme = "README.md"
