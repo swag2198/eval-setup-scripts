@@ -1,11 +1,13 @@
 [build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [project]
-name = "leonardo-eval-scripts"
-version = "0.1.0"
-description = "Leonardo HPC scripts for LLM evaluation with oellm-cli and OpenJury"
+name = "cluster-utils"
+version = "0.3.0"
+description = "Portable HPC environment & HuggingFace cache management for LLM evaluation"
+readme = "README.md"
+license = "MIT"
 requires-python = ">=3.10"
 
 dependencies = [
@@ -14,5 +16,23 @@ dependencies = [
     "transformers>=4.44.0,<5",
 ]
 
-[tool.uv]
-dev-dependencies = []
+[project.scripts]
+hf-cache = "cluster_utils.hf_cache_manager:main"
+cluster-detect = "cluster_utils.cluster:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/cluster_utils"]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.8.0",
+    "pytest>=8.0",
+]
+
+[tool.ruff]
+line-length = 90
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP"]
+ignore = ["E501"]
