@@ -21,13 +21,13 @@ offline. This toolkit handles that seamlessly:
 - ✅ Works with oellm-cli, OpenJury, TRL, vLLM, and any HF-based tool
 - ✅ Python API (`from cluster_utils import HFCacheManager, detect_cluster`)
 
-## � Installation
+## 📦 Installation
 
 ### As a standalone project (recommended for HPC)
 
 ```bash
-git clone <repo-url> scripts
-cd scripts
+git clone <repo-url>
+cd oellm-cluster-utils
 uv sync      # creates .venv with all deps
 bash setup.sh  # interactive first-time config
 ```
@@ -48,10 +48,10 @@ This gives you:
 ### Editable install (for development)
 
 ```bash
-git clone <repo-url> scripts
-pip install -e ./scripts
+git clone <repo-url>
+pip install -e ./oellm-cluster-utils
 # or
-uv add --editable ./scripts
+uv add --editable ./oellm-cluster-utils
 ```
 
 ## 🚀 Quick Start
@@ -59,7 +59,6 @@ uv add --editable ./scripts
 ### 1. Run first-time setup
 
 ```bash
-cd scripts
 bash setup.sh
 # or non-interactive:
 bash setup.sh --account OELLM_prod2026
