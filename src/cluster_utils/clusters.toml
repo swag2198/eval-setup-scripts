@@ -1,0 +1,99 @@
+# =============================================================================
+# Cluster Registry — detection rules & SLURM defaults
+# =============================================================================
+# This file tells cluster_utils HOW to identify a cluster and provides
+# sensible defaults for SLURM settings.  It does NOT define filesystem
+# paths — those vary wildly between projects and are configured
+# interactively by `setup.sh` and stored in `.env`.
+#
+# Detection is tried top-to-bottom; first match wins.
+# "local" is the implicit fallback when nothing matches.
+#
+# To register a new cluster:
+#   1. Add a [cluster_name] section below
+#   2. Fill in detect.* rules (at least one)
+#   3. Set slurm.* defaults
+#   4. Run `setup.sh` — it will auto-detect and ask for the rest
+# =============================================================================
+
+# ─── Leonardo (Cineca, Italy) ─── NVIDIA A100
+[leonardo]
+display_name = "Leonardo (Cineca)"
+
+[leonardo.detect]
+hostname_contains = ["login", "lrd"]
+filesystem        = ["/leonardo_work"]
+slurm_cluster     = "leonardo"
+
+[leonardo.slurm]
+default_partition = "boost_usr_prod"
+gpu_partition     = "boost_usr_prod"
+queue_limit       = 1000
+gpus_per_node     = 4
+cpus_per_gpu      = 8
+
+[leonardo.container]
+runtime = "singularity"
+gpu_args = "--nv"
+
+
+# ─── JURECA (FZJ, Germany) ─── NVIDIA A100
+[jureca]
+display_name = "JURECA (FZJ)"
+
+[jureca.detect]
+hostname_contains = ["jureca"]
+filesystem        = ["/p/data1"]
+slurm_cluster     = "jureca"
+
+[jureca.slurm]
+default_partition = "dc-gpu"
+gpu_partition     = "dc-gpu"
+queue_limit       = 250
+gpus_per_node     = 4
+cpus_per_gpu      = 12
+
+[jureca.container]
+runtime = "singularity"
+gpu_args = "--nv"
+
+
+# ─── Jupiter (FZJ, Germany) ─── NVIDIA GH200
+[jupiter]
+display_name = "Jupiter (FZJ)"
+
+[jupiter.detect]
+hostname_contains = ["jp"]
+slurm_cluster     = "jupiter"
+
+[jupiter.slurm]
+default_partition = "booster"
+gpu_partition     = "booster"
+queue_limit       = 250
+gpus_per_node     = 4
+cpus_per_gpu      = 12
+
+[jupiter.container]
+runtime  = "singularity"
+gpu_args = "--nv --contain --env PYTHONNOUSERSITE=1"
+
+
+# ─── LUMI (CSC, Finland) ─── AMD MI250X
+[lumi]
+display_name = "LUMI (CSC)"
+
+[lumi.detect]
+hostname_contains = ["uan", "nid"]
+filesystem        = ["/pfs/lustrep4"]
+slurm_cluster     = "lumi"
+
+[lumi.slurm]
+default_partition = "small-g"
+gpu_partition     = "standard-g"
+queue_limit       = 210
+gpus_per_node     = 8
+cpus_per_gpu      = 7
+
+[lumi.container]
+runtime  = "singularity"
+gpu_args = "--rocm"

@@ -1,26 +1,32 @@
-# 🖥️ Leonardo LLM Evaluation Scripts
+# 🖥️ Cluster Utils — HPC LLM Evaluation Toolkit
 
-Portable scripts for running LLM evaluations on [Leonardo HPC](https://wiki.u-gov.it/confluence/display/SCAIHPC/UG3.2%3A+LEONARDO+UserGuide) (Cineca).
-Provides a unified environment for **[oellm-cli](https://github.com/OpenEuroLLM/oellm-cli)** and **[OpenJury](https://github.com/OpenEuroLLM/OpenJury)** with shared HuggingFace caching.
+Portable toolkit for running LLM evaluations on HPC clusters.
+Auto-detects the current cluster and provides a unified environment for
+**[oellm-cli](https://github.com/OpenEuroLLM/oellm-cli)** and
+**[OpenJury](https://github.com/OpenEuroLLM/OpenJury)** with shared HuggingFace caching.
+
+**Supported clusters:** Leonardo (Cineca), JURECA (FZJ), Jupiter (FZJ), LUMI (CSC) — and local machines.
+New clusters can be added by editing `clusters.toml`.
 
 ## Why?
 
-Leonardo compute nodes **have no internet access**. You must pre-download all
-models and datasets on a login node, then run evaluations offline. These scripts
-handle that seamlessly:
+Many HPC clusters have compute nodes with **no internet access**. You must
+pre-download all models and datasets on a login node, then run evaluations
+offline. This toolkit handles that seamlessly:
 
 - ✅ One-time setup per user (`bash setup.sh`)
-- ✅ Shared or per-user HF cache (choose during setup)
+- ✅ Auto-detects your cluster (hostname, SLURM, filesystem probes)
+- ✅ All paths are user-configured — no hardcoded assumptions
 - ✅ Automatic offline mode on compute nodes
 - ✅ Works with oellm-cli, OpenJury, TRL, vLLM, and any HF-based tool
+- ✅ Python API (`from cluster_utils import HFCacheManager, detect_cluster`)
 
 ## 🚀 Quick Start
 
-### 1. Clone this repository
+### 1. Clone and enter the repository
 
 ```bash
-# On Leonardo login node
-cd /leonardo_work/<YOUR_ACCOUNT>/users/$(whoami)
+cd /path/to/your/work/directory
 git clone <repo-url> scripts
 cd scripts
 ```
@@ -36,11 +42,12 @@ bash setup.sh --reconfigure
 ```
 
 This will:
-- Detect your username
-- Ask for your SLURM account (validates it exists via `sacctmgr`)
-- Let you choose a **work directory** (`/leonardo_work`, `/leonardo_scratch/fast`, or a custom path)
-- Let you choose per-user or shared HF cache
-- Generate your personal `.env.leonardo` config
+- Auto-detect your HPC cluster (or fall back to local mode)
+- Ask for your SLURM account (validates it via `sacctmgr`)
+- Ask for your **work directory** (no assumptions — you choose)
+- Ask for your **HF cache directory** (default or custom path)
+- Pre-fill SLURM defaults from cluster detection (partition, GPUs, etc.)
+- Generate your personal `.env` config
 - Optionally add auto-sourcing to `~/.bashrc`
 - Optionally run `uv sync` to install Python dependencies
 - Auto-configure oellm-cli `clusters.yaml` if found
@@ -52,13 +59,12 @@ uv sync
 ```
 
 This creates a `.venv` with pinned, compatible versions (`huggingface-hub`,
-`datasets`, `transformers<5`) needed for downloading and caching. Runtime
-dependencies like vLLM are managed by OpenJury's own `pyproject.toml`.
+`datasets`, `transformers<5`) needed for downloading and caching.
 
 ### 4. Source the environment
 
 ```bash
-source leonardo_env.sh
+source env.sh
 ```
 
 (If you added it to `~/.bashrc` during setup, this happens automatically.)
@@ -67,22 +73,22 @@ source leonardo_env.sh
 
 ```bash
 # Download everything from a file (models + datasets in one go)
-python bin/hf_cache_manager.py download-from-file examples/all.txt
+hf-cache download-from-file examples/all.txt
 
 # Preview what would be downloaded (dry run)
-python bin/hf_cache_manager.py download-from-file examples/all.txt --dry-run
+hf-cache download-from-file examples/all.txt --dry-run
 
 # Or download individually:
-python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
-python bin/hf_cache_manager.py download-dataset hellaswag
-python bin/hf_cache_manager.py download-dataset cais/mmlu --name all --split test
+hf-cache download-model Qwen/Qwen2.5-0.5B-Instruct
+hf-cache download-dataset hellaswag
+hf-cache download-dataset cais/mmlu --name all --split test
 
 # Check what's cached (with per-model sizes)
-python bin/hf_cache_manager.py status
+hf-cache status
 
 # Remove stale locks & incomplete downloads
-python bin/hf_cache_manager.py clean
-python bin/hf_cache_manager.py clean --dry-run   # preview only
+hf-cache clean
+hf-cache clean --dry-run   # preview only
 ```
 
 See [examples/](examples/) for pre-made download lists:
@@ -90,14 +96,29 @@ See [examples/](examples/) for pre-made download lists:
 - `examples/datasets.txt` — common evaluation datasets
 - `examples/all.txt` — combined list for one-shot download
 
-### 6. Run on GPU
+### 6. Detect your cluster (standalone)
+
+```bash
+# Shell-friendly output (eval-able)
+cluster-detect
+
+# Human-readable summary
+cluster-detect --summary
+
+# JSON output
+cluster-detect --json
+
+# List all registered clusters
+cluster-detect --list
+```
+
+### 7. Run on GPU
 
 ```bash
 # Get an interactive GPU session
 ./bin/interactive_gpu.sh                       # 1 hour, 1 GPU (default)
 ./bin/interactive_gpu.sh 2 4                   # 2 hours, 4 GPUs (positional)
 ./bin/interactive_gpu.sh --hours 2 --gpus 4    # same, with named args
-./bin/interactive_gpu.sh --cpus 16 --gpus 2    # 16 CPUs, 2 GPUs
 
 # Environment auto-loads with HF_HUB_OFFLINE=1
 # Your cached models are ready to use
@@ -105,55 +126,92 @@ See [examples/](examples/) for pre-made download lists:
 
 ## 📁 Directory Layout
 
-After setup, your workspace looks like this (base path depends on your
-choice during `setup.sh` — `leonardo_work`, `leonardo_scratch`, or custom):
+After setup, your workspace looks like this:
 
 ```
-<WORK_DIR>/                     ← e.g. /leonardo_work/<ACCOUNT>/users/<YOU>
+<WORK_DIR>/                     ← chosen during setup.sh
 ├── scripts/                    ← this repo
 │   ├── setup.sh                ← first-time setup (run once)
-│   ├── leonardo_env.sh         ← environment config (source every session)
+│   ├── env.sh                  ← environment config (source every session)
 │   ├── pyproject.toml          ← Python deps (uv sync to install)
-│   ├── .env.leonardo           ← your personal config (gitignored)
+│   ├── .env                    ← your personal config (gitignored)
+│   ├── src/cluster_utils/      ← Python package
+│   │   ├── __init__.py
+│   │   ├── cluster.py          ← cluster detection & config
+│   │   ├── clusters.toml       ← cluster registry (detection rules)
+│   │   └── hf_cache_manager.py ← HF cache management
 │   ├── bin/
-│   │   ├── hf_cache_manager.py ← download & manage HF cache
+│   │   ├── hf_cache_manager.py ← backward-compat wrapper
 │   │   └── interactive_gpu.sh  ← quick GPU session
 │   ├── slurm/
-│   │   ├── eval_single.sbatch  ← single-eval SLURM template
-│   │   ├── build_container.sh  ← build Singularity container
-│   │   ├── run_in_container.sh ← run command inside container
-│   │   └── ...                 
+│   │   ├── eval_single.sbatch  ← SLURM batch template
+│   │   ├── build_container.sh  ← build Singularity/Apptainer container
+│   │   └── run_in_container.sh ← run inside container
 │   └── examples/
 │       ├── all.txt             ← combined models + datasets list
 │       ├── models.txt          ← example model list
 │       └── datasets.txt        ← example dataset list
+├── hf_cache/                   ← HuggingFace cache (or custom location)
+│   ├── hub/                    ← model snapshots
+│   ├── datasets/               ← Arrow-cached datasets
+│   ├── assets/
+│   └── xet/
 ├── oellm-evals/
-│   ├── hf_data/                ← HuggingFace cache (or shared location)
-│   │   ├── hub/                ← model snapshots
-│   │   ├── datasets/           ← Arrow-cached datasets
-│   │   ├── assets/
-│   │   └── xet/
 │   └── outputs/                ← evaluation results
 ├── oellm-cli/                  ← oellm-cli repo (clone separately)
 ├── OpenJury/                   ← OpenJury repo (clone separately)
 ├── openjury-eval-data/         ← OpenJury datasets
-└── slurm_logs/
+└── slurm_jobs/
+    ├── logs/
+    ├── oellm-cli/
+    └── openjury/
+```
+
+## 🧩 Cluster Registry
+
+Clusters are registered in `src/cluster_utils/clusters.toml`. Each entry has:
+- **Detection rules** — hostname substrings, filesystem probes, SLURM vars
+- **SLURM defaults** — partition, GPUs/node, queue limit
+- **Container settings** — runtime (singularity/apptainer), GPU args
+
+The registry does **not** contain filesystem paths — those vary per project
+and user, and are configured interactively by `setup.sh`.
+
+To add a new cluster, add a section to `clusters.toml`:
+
+```toml
+[mycluster]
+display_name = "MyCluster (MyOrg)"
+
+[mycluster.detect]
+hostname_contains = ["mycluster"]
+filesystem        = ["/data/mycluster"]
+
+[mycluster.slurm]
+default_partition = "gpu"
+gpu_partition     = "gpu"
+gpus_per_node     = 8
+
+[mycluster.container]
+runtime  = "singularity"
+gpu_args = "--nv"
 ```
 
 ## 🤖 Using with oellm-cli
 
-oellm-cli reads `HF_HOME` from `clusters.yaml`. Make sure it matches:
+oellm-cli reads `HF_HOME` from its own `clusters.yaml`. `setup.sh` can
+auto-configure it to match your paths:
 
-```yaml
-# In oellm-cli/oellm/resources/clusters.yaml → Leonardo section
-EVAL_BASE_DIR: "/leonardo_work/<ACCOUNT>/users/<YOU>/oellm-evals"
+```bash
+# During setup.sh, say 'Y' when asked to auto-configure clusters.yaml
+# Or manually set EVAL_BASE_DIR in oellm-cli/oellm/resources/clusters.yaml
 ```
 
-Then oellm-cli automatically uses the same cache as `hf_cache_manager.py`.
+Then oellm-cli automatically uses the same cache as `hf-cache`.
 
 ```bash
 # Pre-download models and task datasets on login node
-python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
+hf-cache download-model Qwen/Qwen2.5-0.5B-Instruct
 cd oellm-cli
 oellm schedule-eval --models Qwen/Qwen2.5-0.5B-Instruct --task-groups open-sci-0.01
 ```
@@ -163,7 +221,7 @@ oellm schedule-eval --models Qwen/Qwen2.5-0.5B-Instruct --task-groups open-sci-0
 ### Initial setup (one-time, on login node)
 
 ```bash
-cd /leonardo_work/<ACCOUNT>/users/$(whoami)
+cd $USER_WORK_DIR
 git clone https://github.com/OpenEuroLLM/OpenJury
 cd OpenJury
 uv sync --extra vllm
@@ -176,23 +234,19 @@ uv sync --extra vllm
 ### Download models & datasets (login node)
 
 ```bash
-# Option 1: batch download all OpenJury models at once
-python ../scripts/bin/hf_cache_manager.py download-from-file ../scripts/examples/all.txt
+# Batch download
+hf-cache download-from-file examples/all.txt
 
-# Option 2: download individually
-python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
-python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-1.5B-Instruct
-python ../scripts/bin/hf_cache_manager.py download-model Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8
-
-# Download OpenJury's own datasets (alpaca-eval tables, judge configs, etc.)
-uv run python -c "from openjury.utils import download_all; download_all()"
+# Or individually:
+hf-cache download-model Qwen/Qwen2.5-0.5B-Instruct
+hf-cache download-model Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8
 ```
 
 ### Run evaluation (compute node)
 
 ```bash
 # Get a GPU node
-./scripts/bin/interactive_gpu.sh 1 1    # 1 hour, 1 GPU
+./scripts/bin/interactive_gpu.sh 1 1
 
 # On the compute node (offline mode auto-enabled):
 cd OpenJury
@@ -204,66 +258,55 @@ uv run python openjury/generate_and_evaluate.py \
   --n_instructions 10
 ```
 
-> **Note**: For large judge models (e.g. 32B GPTQ), you may need multiple GPUs:
-> `./interactive_gpu.sh 2 4` for 4 GPUs.
+## 🐍 Python API
 
-## 🔗 Shared Cache
+```python
+from cluster_utils import detect_cluster, HFCacheManager, ClusterConfig
 
-During `setup.sh`, you can choose a **shared cache** so the whole team downloads
-each model only once:
+# Detect current cluster
+cluster = detect_cluster()
+print(cluster.name)          # "leonardo"
+print(cluster.display_name)  # "Leonardo (Cineca)"
+print(cluster.is_hpc)        # True
+print(cluster.node_type)     # "login" or "compute"
+print(cluster.slurm.gpu_partition)  # "boost_usr_prod"
 
+# Manage HF cache (reads HF_HOME from env)
+hf = HFCacheManager()
+hf.download_model("Qwen/Qwen2.5-0.5B-Instruct")
 ```
-/leonardo_work/<ACCOUNT>/shared/hf_data/
-├── hub/          ← shared models
-└── datasets/     ← shared datasets
-```
-
-All team members' `HF_HOME` points to this directory. Whoever downloads a model
-first makes it available for everyone.
 
 ## 🔧 Scripts Reference
 
 | Script | Purpose |
 |---|---|
-| `setup.sh` | First-time setup — generates `.env.leonardo` config |
-| `leonardo_env.sh` | Environment loader — source in every session |
+| `setup.sh` | First-time setup — generates `.env` config |
+| `env.sh` | Environment loader — source in every session |
 | `pyproject.toml` | Python dependencies — `uv sync` to install |
-| `bin/hf_cache_manager.py` | Download models/datasets, check cache status |
+| `bin/hf_cache_manager.py` | Backward-compat wrapper for `hf-cache` |
 | `bin/interactive_gpu.sh` | Quick interactive GPU allocation |
 | `slurm/eval_single.sbatch` | SLURM batch template for single evaluations |
 | `slurm/build_container.sh` | Build Singularity/Apptainer container |
 | `slurm/run_in_container.sh` | Run a command inside the container |
 | `examples/all.txt` | Combined models + datasets for batch download |
 
-### hf_cache_manager.py commands
+### CLI commands
 
-```bash
-# Download a single model
-python bin/hf_cache_manager.py download-model Qwen/Qwen2.5-0.5B-Instruct
-
-# Download a single dataset (with optional --name config and --split)
-python bin/hf_cache_manager.py download-dataset hellaswag
-python bin/hf_cache_manager.py download-dataset cais/mmlu --name all --split test
-
-# Batch download from a file (models + datasets together)
-python bin/hf_cache_manager.py download-from-file examples/all.txt
-
-# Preview what a batch file would download (without downloading)
-python bin/hf_cache_manager.py download-from-file examples/all.txt --dry-run
-
-# Show cache summary (per-model/dataset sizes, lock detection)
-python bin/hf_cache_manager.py status
-
-# Remove stale lock files, .incomplete downloads, misplaced cache entries
-python bin/hf_cache_manager.py clean
-python bin/hf_cache_manager.py clean --dry-run   # preview only
-
-# Check if a model is ready for offline use
-python bin/hf_cache_manager.py verify Qwen/Qwen2.5-0.5B-Instruct
-
-# Find local fine-tuned models (safetensors)
-python bin/hf_cache_manager.py list-local /path/to/checkpoints
-```
+| Command | Description |
+|---|---|
+| `hf-cache status` | Show cache summary with per-model sizes |
+| `hf-cache download-model <name>` | Download a model |
+| `hf-cache download-dataset <name>` | Download a dataset |
+| `hf-cache download-from-file <path>` | Batch download from text file |
+| `hf-cache clean` | Remove stale locks and incomplete downloads |
+| `hf-cache verify <name>` | Check if model is cached for offline use |
+| `hf-cache list-local <dir>` | Find local fine-tuned models |
+| `hf-cache login` | Check / set HuggingFace token |
+| `hf-cache setup` | Print environment variables |
+| `cluster-detect` | Detect cluster, output shell variables |
+| `cluster-detect --summary` | One-line cluster summary |
+| `cluster-detect --json` | Full cluster config as JSON |
+| `cluster-detect --list` | List all registered clusters |
 
 ### Download file format
 
@@ -288,7 +331,7 @@ Your environment isn't loading correctly. Verify:
 ```bash
 echo $HF_HUB_OFFLINE    # Should print "1" on compute nodes
 echo $HF_HOME           # Should print your hf_data path
-source ~/scripts/leonardo_env.sh   # Re-source if needed
+source env.sh            # Re-source if needed
 ```
 
 ### `Qwen2Tokenizer has no attribute all_special_tokens_extended`
@@ -299,34 +342,28 @@ vllm = ["vllm==0.10.2", "transformers>=4.55.2,<5"]
 ```
 Then: `cd OpenJury && uv sync --extra vllm`
 
-### `ModuleNotFoundError: No module named 'openjury'`
-OpenJury uses its own `.venv` managed by `uv`. Run with `uv run`:
-```bash
-cd OpenJury
-uv run python openjury/generate_and_evaluate.py ...
-```
-
 ### Model not found in offline mode
 Ensure you downloaded it on the login node first:
 ```bash
-python scripts/bin/hf_cache_manager.py verify Qwen/Qwen2.5-0.5B-Instruct
+hf-cache verify Qwen/Qwen2.5-0.5B-Instruct
 ```
 
 ### `Repository not found` (gated models like Llama)
 1. Accept the license on [huggingface.co](https://huggingface.co)
-2. On login node: `huggingface-cli login`
-3. Then download: `python bin/hf_cache_manager.py download-model meta-llama/...`
+2. On login node: `hf-cache login`
+3. Then download: `hf-cache download-model meta-llama/...`
 
 ## 📋 Environment Variables Reference
 
 | Variable | Set by | Purpose |
 |---|---|---|
-| `HF_HOME` | `leonardo_env.sh` | Root HF cache directory |
-| `HF_HUB_CACHE` | `leonardo_env.sh` | Model snapshots (`hub/`) |
-| `HF_DATASETS_CACHE` | `leonardo_env.sh` | Arrow datasets (`datasets/`) |
-| `HF_HUB_OFFLINE` | `leonardo_env.sh` | Auto-set to `1` on compute nodes |
-| `HF_DATASETS_OFFLINE` | `leonardo_env.sh` | Auto-set to `1` on compute nodes |
-| `TRANSFORMERS_OFFLINE` | `leonardo_env.sh` | Auto-set to `1` on compute nodes |
-| `OPENJURY_DATA` | `leonardo_env.sh` | OpenJury dataset directory |
-| `ACCOUNT` | `.env.leonardo` | SLURM project account |
-| `PARTITION` | `.env.leonardo` | SLURM partition |
+| `HF_HOME` | `env.sh` | Root HF cache directory |
+| `HF_HUB_CACHE` | `env.sh` | Model snapshots (`hub/`) |
+| `HF_DATASETS_CACHE` | `env.sh` | Arrow datasets (`datasets/`) |
+| `HF_HUB_OFFLINE` | `env.sh` | Auto-set to `1` on compute nodes |
+| `TRANSFORMERS_OFFLINE` | `env.sh` | Auto-set to `1` on compute nodes |
+| `CLUSTER_NAME` | `.env` | Detected cluster identifier |
+| `ACCOUNT` | `.env` | SLURM project account |
+| `PARTITION` | `.env` | Default SLURM partition |
+| `CONTAINER_RUNTIME` | `.env` | Container runtime (singularity/apptainer) |
+| `OPENJURY_DATA` | `env.sh` | OpenJury dataset directory |
