@@ -21,19 +21,45 @@ offline. This toolkit handles that seamlessly:
 - ✅ Works with oellm-cli, OpenJury, TRL, vLLM, and any HF-based tool
 - ✅ Python API (`from cluster_utils import HFCacheManager, detect_cluster`)
 
-## 🚀 Quick Start
+## � Installation
 
-### 1. Clone and enter the repository
+### As a standalone project (recommended for HPC)
 
 ```bash
-cd /path/to/your/work/directory
 git clone <repo-url> scripts
 cd scripts
+uv sync      # creates .venv with all deps
+bash setup.sh  # interactive first-time config
 ```
 
-### 2. Run first-time setup
+### As a dependency in another project
 
 ```bash
+# From git
+uv add git+https://github.com/OpenEuroLLM/cluster-utils
+# or
+pip install git+https://github.com/OpenEuroLLM/cluster-utils
+```
+
+This gives you:
+- **CLI tools**: `hf-cache` and `cluster-detect` on your PATH
+- **Python API**: `from cluster_utils import HFCacheManager, detect_cluster`
+
+### Editable install (for development)
+
+```bash
+git clone <repo-url> scripts
+pip install -e ./scripts
+# or
+uv add --editable ./scripts
+```
+
+## 🚀 Quick Start
+
+### 1. Run first-time setup
+
+```bash
+cd scripts
 bash setup.sh
 # or non-interactive:
 bash setup.sh --account OELLM_prod2026
@@ -50,18 +76,7 @@ This will:
 - Generate your personal `.env` config
 - Optionally add auto-sourcing to `~/.bashrc`
 - Optionally run `uv sync` to install Python dependencies
-- Auto-configure oellm-cli `clusters.yaml` if found
-
-### 3. Install Python dependencies
-
-```bash
-uv sync
-```
-
-This creates a `.venv` with pinned, compatible versions (`huggingface-hub`,
-`datasets`, `transformers<5`) needed for downloading and caching.
-
-### 4. Source the environment
+### 2. Source the environment
 
 ```bash
 source env.sh
@@ -69,7 +84,7 @@ source env.sh
 
 (If you added it to `~/.bashrc` during setup, this happens automatically.)
 
-### 5. Download models & datasets (login node only)
+### 3. Download models & datasets (login node only)
 
 ```bash
 # Download everything from a file (models + datasets in one go)
@@ -96,7 +111,7 @@ See [examples/](examples/) for pre-made download lists:
 - `examples/datasets.txt` — common evaluation datasets
 - `examples/all.txt` — combined list for one-shot download
 
-### 6. Detect your cluster (standalone)
+### 4. Detect your cluster (standalone)
 
 ```bash
 # Shell-friendly output (eval-able)
@@ -112,7 +127,7 @@ cluster-detect --json
 cluster-detect --list
 ```
 
-### 7. Run on GPU
+### 5. Run on GPU
 
 ```bash
 # Get an interactive GPU session
